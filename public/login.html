@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<script>try{document.documentElement.dataset.theme=JSON.parse(localStorage.getItem("bws:theme"))||"light"}catch(e){}</script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in · Bulk Sender</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-body">
+  <main class="auth-wrap">
+    <section class="auth-art" aria-hidden="true">
+      <div class="auth-art-in">
+        <div class="brand brand-light">
+          <span class="logo"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2 21l1.6-4.8A9 9 0 1 1 7 20.3L2 21zm6-12.5c0 4 3.5 7.5 7.5 7.5l1.5-1.5-2.2-1.3-1 .8a5 5 0 0 1-2.8-2.8l.8-1L10.5 8 9 6.5A2 2 0 0 0 8 8.5z"/></svg></span>
+          <div><div class="brand-name">Bulk Sender</div><div class="brand-sub">for WhatsApp</div></div>
+        </div>
+        <h2>Reach every customer on WhatsApp — in one click.</h2>
+        <ul class="auth-points">
+          <li>Send text, photos, videos and files to your whole list</li>
+          <li>Safe pacing that protects your number</li>
+          <li>Live progress and a downloadable delivery report</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="auth-panel">
+      <form id="loginForm" class="auth-card" novalidate>
+        <h1>Sign in</h1>
+        <p class="muted">Use the email and password your administrator gave you.</p>
+
+        <div id="loginError" class="alert alert-bad hidden" role="alert"></div>
+
+        <label class="field">
+          <span>Email</span>
+          <input class="input" id="email" type="email" autocomplete="username" required placeholder="you@business.com" />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <div class="pw-wrap">
+            <input class="input" id="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">Show</button>
+          </div>
+        </label>
+
+        <button class="btn btn-primary btn-lg btn-block" id="loginBtn" type="submit">Sign in</button>
+        <p class="muted small center">Need access? Contact your administrator.</p>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      $('pwToggle').onclick = () => {
+        const show = $('password').type === 'password';
+        $('password').type = show ? 'text' : 'password';
+        $('pwToggle').textContent = show ? 'Hide' : 'Show';
+      };
+      const showError = (msg) => {
+        $('loginError').textContent = msg;
+        $('loginError').classList.remove('hidden');
+      };
+      $('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        $('loginError').classList.add('hidden');
+        const email = $('email').value.trim();
+        const password = $('password').value;
+        if (!email || !password) return showError('Enter your email and password.');
+        const btn = $('loginBtn');
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+        try {
+          const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Could not sign in.');
+          location.href = '/';
+        } catch (err) {
+          showError(err.message);
+          btn.disabled = false;
+          btn.textContent = 'Sign in';
+        }
+      });
+      $('email').focus();
+    })();
+  </script>
+</body>
+</html>

@@ -1,22 +1,79 @@
-// Saved message drafts (text + files + captions, in order), stored on this computer.
-// Each draft owns a copy of its files under <dir>/slot-N/, so removing a file from the
-// composer — or deleting the original upload — never breaks a saved draft.
+// Saved message drafts (text + files + captions, in order).
+// Draft *metadata* lives in an index (MongoDB in production, a JSON file in tests);
+// each draft owns a copy of its files on disk under <dir>/slot-N/, so removing a file from
+// the composer — or deleting the original upload — never breaks a saved draft.
 import fs from 'node:fs';
 import path from 'node:path';
 import { classify } from './media.js';
 
 export const MAX_DRAFTS = 2;
 
-export class DraftStore {
-  constructor({ dir }) {
-    this.dir = dir;
-    this.index = path.join(dir, 'drafts.json');
-    fs.mkdirSync(dir, { recursive: true });
+/** Index kept in a JSON file (used by tests and as a simple fallback). */
+export class JsonDraftIndex {
+  constructor(file) {
+    this.file = file;
+  }
+
+  _read() {
     try {
-      this.drafts = JSON.parse(fs.readFileSync(this.index, 'utf8'));
+      return JSON.parse(fs.readFileSync(this.file, 'utf8'));
     } catch {
-      this.drafts = {};
+      return {};
     }
+  }
+
+  async all() {
+    return Object.values(this._read());
+  }
+
+  async get(slot) {
+    return this._read()[slot] || null;
+  }
+
+  async put(doc) {
+    const all = this._read();
+    all[doc.slot] = doc;
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    fs.writeFileSync(this.file, JSON.stringify(all, null, 2));
+  }
+
+  async remove(slot) {
+    const all = this._read();
+    delete all[slot];
+    fs.writeFileSync(this.file, JSON.stringify(all, null, 2));
+  }
+}
+
+/** Index kept in a MongoDB collection, scoped to one user. */
+export class MongoDraftIndex {
+  constructor(collection, userId) {
+    this.col = collection;
+    this.userId = userId;
+  }
+
+  async all() {
+    return this.col.find({ userId: this.userId }, { projection: { _id: 0, userId: 0 } }).toArray();
+  }
+
+  async get(slot) {
+    return this.col.findOne({ userId: this.userId, slot }, { projection: { _id: 0, userId: 0 } });
+  }
+
+  async put(doc) {
+    await this.col.replaceOne({ userId: this.userId, slot: doc.slot }, { ...doc, userId: this.userId }, { upsert: true });
+  }
+
+  async remove(slot) {
+    await this.col.deleteOne({ userId: this.userId, slot });
+  }
+}
+
+export class DraftStore {
+  /** @param {{dir:string, index?:{all:Function,get:Function,put:Function,remove:Function}}} opts */
+  constructor({ dir, index }) {
+    this.dir = dir;
+    fs.mkdirSync(dir, { recursive: true });
+    this.index = index || new JsonDraftIndex(path.join(dir, 'drafts.json'));
   }
 
   _slot(slot) {
@@ -25,13 +82,10 @@ export class DraftStore {
     return n;
   }
 
-  _persist() {
-    fs.writeFileSync(this.index, JSON.stringify(this.drafts, null, 2));
-  }
-
   /** Drafts for the UI, without server paths. */
-  list() {
-    return Object.values(this.drafts)
+  async list() {
+    const docs = await this.index.all();
+    return docs
       .sort((a, b) => a.slot - b.slot)
       .map((d) => ({
         slot: d.slot,
@@ -45,11 +99,9 @@ export class DraftStore {
 
   /**
    * Save the composer's items into a slot (overwrites it).
-   * @param {number} slot 1..MAX_DRAFTS
-   * @param {{name:string, items:({type:'text',text:string}|{type:'file',uploadId:string,caption?:string})[]}} draft
    * @param {(uploadId:string) => ({path:string, originalName:string, mimetype:string, size:number}|undefined)} lookupUpload
    */
-  save(slot, { name, items }, lookupUpload) {
+  async save(slot, { name, items }, lookupUpload) {
     const n = this._slot(slot);
     const clean = [];
     for (const it of items || []) {
@@ -77,32 +129,35 @@ export class DraftStore {
     fs.rmSync(finalDir, { recursive: true, force: true });
     fs.renameSync(tmpDir, finalDir);
 
-    this.drafts[n] = { slot: n, name: String(name || '').trim().slice(0, 60) || `Draft ${n}`, savedAt: new Date().toISOString(), items: stored };
-    this._persist();
-    return this.list().find((d) => d.slot === n);
+    await this.index.put({ slot: n, name: String(name || '').trim().slice(0, 60) || `Draft ${n}`, savedAt: new Date().toISOString(), items: stored });
+    return (await this.list()).find((d) => d.slot === n);
   }
 
-  rename(slot, name) {
+  async rename(slot, name) {
     const n = this._slot(slot);
-    if (!this.drafts[n]) throw new Error('There is no draft in this slot.');
-    this.drafts[n].name = String(name || '').trim().slice(0, 60) || `Draft ${n}`;
-    this._persist();
+    const d = await this.index.get(n);
+    if (!d) throw new Error('There is no draft in this slot.');
+    await this.index.put({ ...d, name: String(name || '').trim().slice(0, 60) || `Draft ${n}` });
   }
 
-  remove(slot) {
+  async remove(slot) {
     const n = this._slot(slot);
-    delete this.drafts[n];
-    this._persist();
+    await this.index.remove(n);
     fs.rmSync(path.join(this.dir, `slot-${n}`), { recursive: true, force: true });
+  }
+
+  /** Remove every draft (used when a user is deleted). */
+  async removeAll() {
+    for (const d of await this.index.all()) await this.remove(d.slot);
   }
 
   /**
    * Turn a draft back into composer items. Files are handed to `importFile`, which must
    * copy them into the uploads area and return the new upload's public info ({id, ...}).
    */
-  materialize(slot, importFile) {
+  async materialize(slot, importFile) {
     const n = this._slot(slot);
-    const d = this.drafts[n];
+    const d = await this.index.get(n);
     if (!d) throw new Error('There is no draft in this slot.');
     return d.items.map((it) => {
       if (it.type === 'text') return { type: 'text', text: it.text };

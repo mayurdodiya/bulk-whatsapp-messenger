@@ -27,6 +27,31 @@ Change the sending speed with **⚙ Settings**: Safe, Recommended, Fast or Custo
 
 Drafts are stored in `data/drafts/`, with their own copy of each file. Back up that folder to keep them.
 
+## Accounts & subscriptions
+- Everyone signs in at `/login`. The **admin** creates customer accounts with an email, a password and a **subscription end date** (sidebar → **Users**).
+- A customer can use the tool **up to and including** the end date. After that, signing in and every action show *"Your subscription has ended. Please contact +91 8347337661."* A running campaign is paused.
+- To give access again, edit the user and move the end date (or click **+1 month**). They can sign in straight away.
+- Every customer has their own workspace: their own WhatsApp link, contacts, message, drafts, uploads and report.
+- Changing a user's password signs them out everywhere. Deleting a user also unlinks their WhatsApp and removes their files.
+
+### Setup
+1. Copy `.env.example` to `.env` and fill it in:
+   - `MONGODB_URI`
+   - `ADMIN_EMAIL` and `ADMIN_PASSWORD`
+   - `SUPPORT_PHONE`, `APP_TIMEZONE`
+2. Run `npm install`, then `npm run seed`. This creates the admin, or resets the admin password from `.env`. The server also creates the admin on first start if none exists.
+3. Run `npm start`.
+
+### Where data is stored
+- **MongoDB:** users (passwords hashed with scrypt), sign-in sessions, and draft details.
+- **Server disk (`data/users/<userId>/`):** WhatsApp session, uploaded files, draft files and campaign progress. Back up this folder.
+
+### Hosting for customers
+- Use a VPS (Linux or Windows) with Node.js 20+. Keep the app running with a process manager such as `pm2 start src/server.js --name bulk-sender`.
+- Put it behind HTTPS (for example Nginx or Caddy with a free certificate) and set `COOKIE_SECURE=true` in `.env`.
+- Each connected WhatsApp uses roughly 50–100 MB of RAM.
+- `.env` holds your database password. It is git-ignored; never commit or share it.
+
 ## Safety (avoid bans)
 - The default waits are 8–15 seconds between contacts, plus a 2–5 minute break after every 50. Don't make them much faster.
 - Send only to people who expect your messages. Many "block" or "report spam" reports get numbers banned.

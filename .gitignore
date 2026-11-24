@@ -3,3 +3,4 @@ auth/
 uploads/
 data/
 .superpowers/
+.env

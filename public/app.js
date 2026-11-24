@@ -25,9 +25,12 @@
   };
 
   // ================= helpers =================
+  // Browser storage is scoped per signed-in user (set once /api/me answers), so two accounts
+  // on the same browser never see each other's contacts or message. The theme stays global.
+  let storePrefix = 'bws:';
   const store = {
-    get(k, d) { try { const v = localStorage.getItem('bws:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem('bws:' + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
+    get(k, d) { try { const v = localStorage.getItem((k === 'theme' ? 'bws:' : storePrefix) + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem((k === 'theme' ? 'bws:' : storePrefix) + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmtSize = (b) => (b < 1024 ? b + ' B' : b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
@@ -76,18 +79,41 @@
       headers: opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && data.code === 'AUTH_REQUIRED') { location.href = '/login'; throw new Error('Please sign in.'); }
+    if (data.code === 'SUBSCRIPTION_ENDED') { showExpired(data.error); throw new Error(data.error); }
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
+  }
+
+  function showExpired(message) {
+    $('expiredMsg').textContent = message || 'Your subscription has ended.';
+    const phone = (state.supportPhone || (message || '').match(/\+?[\d\s]{8,}/)?.[0] || '').trim();
+    $('expiredCall').classList.toggle('hidden', !phone);
+    $('expiredCall').href = 'tel:' + phone.replace(/\s/g, '');
+    $('expiredCall').textContent = phone ? `Call ${phone}` : 'Call support';
+    $('expiredScreen').classList.remove('hidden');
+  }
+  async function signOut() {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    location.href = '/login';
   }
 
   // ================= two steps =================
   // Step 1: connect WhatsApp + contacts. Step 2: message + send (+ live progress).
   let step = 1;
+  const TITLES = { 1: ['Campaign', 'Connect & contacts'], 2: ['Campaign', 'Message & send'], admin: ['Administration', 'Users'] };
   function showStep(n, scroll = true) {
+    if (n === 'admin' && state.me?.role !== 'admin') n = 1;
+    if (n !== 'admin') n = Number(n) === 2 ? 2 : 1;
     step = n;
     store.set('step', n);
-    document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', Number(v.dataset.view) !== n));
-    document.querySelectorAll('.actionbar').forEach((b) => b.classList.toggle('hidden', Number(b.dataset.bar) !== n));
+    document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== String(n)));
+    document.querySelectorAll('.actionbar').forEach((b) => b.classList.toggle('hidden', b.dataset.bar !== String(n)));
+    document.body.classList.toggle('no-bar', n === 'admin');
+    $('crumb').textContent = TITLES[n][0];
+    $('topTitle').textContent = TITLES[n][1];
+    openSidebar(false);
+    if (n === 'admin') loadUsers();
     renderStepper();
     renderReview();
     document.querySelectorAll('#itemList textarea').forEach(autoGrow);
@@ -101,7 +127,15 @@
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     el?.animate?.([{ boxShadow: '0 0 0 3px var(--accent)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 1200 });
   }
-  document.querySelectorAll('.step-tab').forEach((b) => (b.onclick = () => showStep(Number(b.dataset.step))));
+  document.querySelectorAll('.step-tab').forEach((b) => (b.onclick = () => showStep(b.dataset.step)));
+  function openSidebar(open) {
+    $('sidebar').classList.toggle('open', open);
+    $('sideBackdrop').classList.toggle('hidden', !open);
+  }
+  $('menuBtn').onclick = () => openSidebar(true);
+  $('sideBackdrop').onclick = () => openSidebar(false);
+  $('signOut').onclick = signOut;
+  $('expiredSignOut').onclick = signOut;
   $('toStep2').onclick = () => showStep(2);
   $('toStep1').onclick = () => showStep(1);
   const isActive = () => ['running', 'paused'].includes(state.campaign?.status);
@@ -113,9 +147,9 @@
     const n = state.contacts.valid.length;
     const parts = sequence().length;
     document.querySelectorAll('.step-tab').forEach((b) => {
-      const s = Number(b.dataset.step);
-      b.classList.toggle('active', s === step);
-      b.classList.toggle('done', s === 1 ? connected && contactsReady() : messageReady());
+      const s = b.dataset.step;
+      b.classList.toggle('active', s === String(step));
+      b.classList.toggle('done', s === '1' ? connected && contactsReady() : s === '2' ? messageReady() : false);
     });
     $('tab1Sub').textContent = connected || n ? `${connected ? 'Connected' : 'Not connected'} · ${plural(n, 'number')}` : 'Link WhatsApp, add numbers';
     $('tab2Sub').textContent = parts ? `${plural(parts, 'message')} ready` : 'Compose and publish';
@@ -161,6 +195,11 @@
     renderWa();
     if (!wasConnected && s.status === 'connected') toast('WhatsApp connected');
   });
+  socket.on('connect_error', (err) => {
+    if (err?.message === 'AUTH_REQUIRED') location.href = '/login';
+    else if (err?.message === 'SUBSCRIPTION_ENDED') api('/api/me').catch(() => {});
+  });
+  socket.on('subscription:ended', (d) => showExpired(d?.message));
   socket.on('disconnect', () => { state.wa = { status: 'disconnected', error: 'Lost connection to the app. Is the black server window still open?' }; renderWa(); });
   $('connPill').onclick = () => go(1);
   $('logoutBtn').onclick = async () => {
@@ -972,8 +1011,170 @@
   $('stopBtn').onclick = action('stop');
   $('headStatus').onclick = () => { showStep(2, false); $('progressCard').scrollIntoView({ behavior: 'smooth' }); };
 
+  // ================= account card =================
+  const fmtDate = (ymd) => (ymd ? new Date(ymd + 'T00:00:00').toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  function planText(u) {
+    const sub = u.subscription;
+    if (sub.status === 'admin') return { cls: 'admin', text: 'Administrator' };
+    if (sub.status === 'expired') return { cls: 'bad', text: 'Subscription ended' };
+    if (sub.status === 'expiring') return { cls: 'warn', text: sub.daysLeft === 0 ? 'Ends today' : `Ends in ${plural(sub.daysLeft, 'day')}` };
+    return { cls: 'ok', text: `Active until ${fmtDate(u.endDate)}` };
+  }
+  function renderAccount() {
+    const u = state.me;
+    $('accName').textContent = u.name || u.email.split('@')[0];
+    $('accEmail').textContent = u.email;
+    $('accAvatar').textContent = (u.name || u.email).trim().charAt(0).toUpperCase();
+    const p = planText(u);
+    $('planBadge').className = 'plan ' + p.cls;
+    $('planBadge').textContent = p.text;
+    $('navAdmin').classList.toggle('hidden', u.role !== 'admin');
+  }
+
+  // ================= admin: users =================
+  state.users = [];
+  let userFilter = 'all';
+  let editingUser = null;
+  const STATUS_TEXT = { active: 'Active', expiring: 'Expiring soon', expired: 'Expired', admin: 'Admin' };
+  const fmtWhenLong = (d) => (d ? new Date(d).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never');
+
+  async function loadUsers() {
+    if (state.me?.role !== 'admin') return;
+    try {
+      state.users = (await api('/api/admin/users')).users;
+    } catch (e) { return toast(e.message, true); }
+    renderUsers();
+  }
+
+  function renderUsers() {
+    const customers = state.users.filter((u) => u.role !== 'admin');
+    const count = (st) => customers.filter((u) => u.subscription.status === st).length;
+    $('stTotal').textContent = customers.length;
+    $('stActive').textContent = count('active');
+    $('stExpiring').textContent = count('expiring');
+    $('stExpired').textContent = count('expired');
+    $('tabAdminSub').textContent = customers.length ? `${plural(customers.length, 'customer')}${count('expired') ? ' · ' + count('expired') + ' expired' : ''}` : 'Accounts & subscriptions';
+
+    const q = $('userSearch').value.trim().toLowerCase();
+    const rows = state.users.filter((u) => (userFilter === 'all' || u.subscription.status === userFilter)
+      && (!q || u.email.includes(q) || (u.name || '').toLowerCase().includes(q)));
+    $('userRows').innerHTML = rows.map((u) => {
+      const sub = u.subscription;
+      const days = sub.status === 'expiring' ? ` · ${sub.daysLeft === 0 ? 'today' : plural(sub.daysLeft, 'day') + ' left'}` : sub.status === 'expired' ? ` · ${plural(-sub.daysLeft, 'day')} ago` : '';
+      const isSelf = u.id === state.me.id;
+      return `<tr data-uid="${esc(u.id)}">
+        <td><div class="u-cell"><span class="u-av">${esc((u.name || u.email).charAt(0).toUpperCase())}</span>
+          <div><div class="u-name">${esc(u.name || '—')}${isSelf ? ' <span class="you">You</span>' : ''}</div><div class="u-mail">${esc(u.email)}</div></div></div></td>
+        <td>${u.role === 'admin' ? '<span class="muted">Never</span>' : esc(fmtDate(u.endDate)) + '<span class="muted small">' + esc(days) + '</span>'}</td>
+        <td><span class="status s-${sub.status}">${STATUS_TEXT[sub.status]}</span></td>
+        <td class="muted">${esc(fmtWhenLong(u.lastLoginAt))}</td>
+        <td class="right nowrap">
+          ${u.role === 'admin' ? '' : '<button class="btn btn-ghost btn-xs" data-ua="extend" title="Add one month to the end date">+1 month</button>'}
+          <button class="btn btn-ghost btn-xs" data-ua="edit">Edit</button>
+          ${isSelf || u.role === 'admin' ? '' : '<button class="ibtn del" data-ua="delete" title="Delete user" aria-label="Delete user">' + ICON.del + '</button>'}
+        </td>
+      </tr>`;
+    }).join('');
+    $('usersEmpty').classList.toggle('hidden', state.users.length > 1 || rows.length > 0);
+  }
+  $('userSearch').addEventListener('input', renderUsers);
+  $('userFilters').addEventListener('click', (e) => {
+    const f = e.target.dataset.uf;
+    if (!f) return;
+    userFilter = f;
+    $('userFilters').querySelectorAll('.chip-btn').forEach((b) => b.classList.toggle('active', b.dataset.uf === f));
+    renderUsers();
+  });
+
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function addMonths(fromYmd, months) {
+    const today = new Date();
+    const base = fromYmd && new Date(fromYmd + 'T00:00:00') > today ? new Date(fromYmd + 'T00:00:00') : today;
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + months);
+    return ymd(d);
+  }
+
+  function openUserDialog(user) {
+    editingUser = user || null;
+    const isAdminUser = user?.role === 'admin';
+    $('userDlgTitle').textContent = user ? 'Edit user' : 'Add user';
+    $('userDlgSub').textContent = user ? 'Change details or extend the subscription. Leave the password empty to keep it.' : 'The customer signs in with this email and password.';
+    $('uName').value = user?.name || '';
+    $('uEmail').value = user?.email || '';
+    $('uPassword').value = '';
+    $('uPassLabel').textContent = user ? 'New password (optional)' : 'Password';
+    $('uEnd').value = user?.endDate || addMonths(null, 1);
+    $('uEndField').classList.toggle('hidden', isAdminUser);
+    $('quickDates').classList.toggle('hidden', isAdminUser);
+    $('userDlgError').classList.add('hidden');
+    $('userDialog').showModal();
+    $(user ? 'uEnd' : 'uName').focus();
+  }
+  $('addUserBtn').onclick = () => openUserDialog(null);
+  $('quickDates').addEventListener('click', (e) => {
+    const m = Number(e.target.dataset.add);
+    if (m) $('uEnd').value = addMonths(editingUser?.endDate || null, m);
+  });
+  $('userForm').addEventListener('submit', async (e) => {
+    if (e.submitter?.value !== 'ok') return; // Cancel closes normally
+    e.preventDefault();
+    const body = { name: $('uName').value, email: $('uEmail').value, endDate: $('uEnd').value, password: $('uPassword').value };
+    const btn = $('userSave');
+    btn.disabled = true;
+    try {
+      if (editingUser) await api('/api/admin/users/' + encodeURIComponent(editingUser.id), { method: 'PATCH', body: JSON.stringify(body) });
+      else await api('/api/admin/users', { method: 'POST', body: JSON.stringify(body) });
+      $('userDialog').close();
+      toast(editingUser ? 'User updated' : 'User created — share the email and password with your customer');
+      if (editingUser?.id === state.me.id) { state.me = (await api('/api/me')).user; renderAccount(); }
+      await loadUsers();
+    } catch (err) {
+      $('userDlgError').textContent = err.message;
+      $('userDlgError').classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  $('userRows').addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-ua]')?.dataset.ua;
+    if (!act) return;
+    const u = state.users.find((x) => x.id === e.target.closest('tr').dataset.uid);
+    if (!u) return;
+    try {
+      if (act === 'edit') return openUserDialog(u);
+      if (act === 'extend') {
+        const endDate = addMonths(u.endDate, 1);
+        await api('/api/admin/users/' + encodeURIComponent(u.id), { method: 'PATCH', body: JSON.stringify({ name: u.name, email: u.email, endDate }) });
+        toast(`${u.name || u.email}: now active until ${fmtDate(endDate)}`);
+      }
+      if (act === 'delete') {
+        if (!(await ask(`Delete ${u.name || u.email}?`, 'Their account, WhatsApp link, drafts and files will be removed. This cannot be undone.', 'Delete user', true))) return;
+        await api('/api/admin/users/' + encodeURIComponent(u.id), { method: 'DELETE' });
+        toast('User deleted');
+      }
+      await loadUsers();
+    } catch (err) { toast(err.message, true); }
+  });
+
   // ================= init =================
   (async () => {
+    try {
+      const me = await api('/api/me');
+      state.me = me.user;
+      state.supportPhone = me.supportPhone;
+      storePrefix = `bws:${me.user.id}:`;
+      // carry the admin's pre-accounts browser data (contacts, composer, step, speed) over once
+      if (me.user.role === 'admin') {
+        try {
+          for (const k of ['contacts', 'cc', 'items', 'step', 'settings']) {
+            const old = localStorage.getItem('bws:' + k);
+            if (old !== null && localStorage.getItem(storePrefix + k) === null) localStorage.setItem(storePrefix + k, old);
+          }
+        } catch { /* storage unavailable */ }
+      }
+      renderAccount();
+    } catch { return; /* redirected to sign in, or subscription screen shown */ }
     try { state.config = { ...state.config, ...(await api('/api/config')) }; } catch { /* defaults */ }
     $('maxMb').textContent = state.config.maxFileMb;
 

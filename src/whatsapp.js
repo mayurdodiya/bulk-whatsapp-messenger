@@ -146,6 +146,27 @@ export class WhatsAppClient extends EventEmitter {
     await this.start(); // show a new QR straight away
   }
 
+  /** Stop for good (no reconnect). With `logout`, also unlink this device from the phone. */
+  async close({ logout = false } = {}) {
+    this._stopped = true;
+    clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+    if (logout) {
+      try {
+        await this.sock?.logout();
+      } catch {
+        /* already gone */
+      }
+    }
+    try {
+      this.sock?.end(undefined);
+    } catch {
+      /* ignore */
+    }
+    this.sock = null;
+    this._set({ status: 'disconnected' });
+  }
+
   _safeWipe() {
     try {
       fs.rmSync(this.authDir, { recursive: true, force: true, maxRetries: 3 });
