@@ -5,6 +5,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bulk WhatsApp Sender</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="shell">
@@ -41,9 +44,9 @@
     </nav>
 
     <div class="side-foot">
-      <button id="openSettings" class="side-link" title="Sending settings">
-        <svg viewBox="0 0 24 24" width="17" height="17"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
-        Settings
+      <button id="openSettings" class="step-tab nav-settings" data-step="settings" title="Settings">
+        <span class="step-dot nav-ic"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></span>
+        <span class="step-text"><b>Settings</b><small>Speed & appearance</small></span>
       </button>
       <div class="account">
         <div class="acc-avatar" id="accAvatar">·</div>
@@ -324,6 +327,64 @@
     </section>
   </main>
 
+  <!-- ================= SETTINGS ================= -->
+  <main class="page view hidden" data-view="settings">
+    <div class="page-head">
+      <h1>Settings</h1>
+      <p>Choose how fast messages go out and how the app looks.</p>
+    </div>
+
+    <div class="grid-settings">
+      <section class="card">
+        <div class="card-head">
+          <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M13 2.05v2.02A8 8 0 0 1 19.93 11h2.02A10 10 0 0 0 13 2.05zM11 2.05A10 10 0 0 0 2.05 11h2.02A8 8 0 0 1 11 4.07V2.05zM12 6a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V6zm0 4.5 4.5-2-2 4.5a2 2 0 1 1-2.5-2.5z"/></svg></span>
+          <div><h2>Sending speed</h2><p>Slower looks more human and protects your number from being banned.</p></div>
+        </div>
+        <div class="presets" id="presets">
+          <label class="preset"><input type="radio" name="preset" value="safe" /><div><b>Safe</b><span>12–25 s apart · break every 30</span></div></label>
+          <label class="preset"><input type="radio" name="preset" value="normal" /><div><b>Recommended</b><span>8–15 s apart · break every 50</span></div></label>
+          <label class="preset"><input type="radio" name="preset" value="fast" /><div><b>Fast</b><span>5–10 s apart · higher ban risk</span></div></label>
+          <label class="preset"><input type="radio" name="preset" value="custom" /><div><b>Custom</b><span>Set your own values</span></div></label>
+        </div>
+        <div class="settings-fields">
+          <label class="field"><span>Min wait (seconds)</span><input class="input" id="minDelay" type="number" min="3" /></label>
+          <label class="field"><span>Max wait (seconds)</span><input class="input" id="maxDelay" type="number" min="3" /></label>
+          <label class="field"><span>Break after every … contacts</span><input class="input" id="batchSize" type="number" min="0" /></label>
+          <label class="field"><span>Break min (minutes)</span><input class="input" id="batchRestMin" type="number" min="0" /></label>
+          <label class="field"><span>Break max (minutes)</span><input class="input" id="batchRestMax" type="number" min="0" /></label>
+        </div>
+        <p class="help">Minimum wait is 3 seconds. Set "break after" to 0 to never take breaks (not recommended). Changes are saved automatically.</p>
+      </section>
+
+      <div class="stack">
+        <section class="card">
+          <div class="card-head">
+            <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.4A5.5 5.5 0 0 1 12.4 3.1C12.3 3 12.1 3 12 3z"/></svg></span>
+            <div><h2>Appearance</h2><p>Light, dark, or follow your computer.</p></div>
+          </div>
+          <div class="seg" id="themeSeg" role="radiogroup" aria-label="Theme">
+            <label><input type="radio" name="theme" value="light" /><span>Light</span></label>
+            <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+            <label><input type="radio" name="theme" value="auto" /><span>Auto</span></label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5l-9-4zm-1 15-4-4 1.4-1.4 2.6 2.6 5.6-5.6L18 9l-7 7z"/></svg></span>
+            <div><h2>Avoid bans</h2><p>Good habits that keep your number safe.</p></div>
+          </div>
+          <ul class="tips">
+            <li>Message people who know you or expect your message.</li>
+            <li>New numbers: start with under 50 contacts a day.</li>
+            <li>Avoid sending the exact same link to hundreds of people.</li>
+            <li>If many people block or report you, WhatsApp may ban the number.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+
   <!-- ================= BOTTOM ACTION BARS ================= -->
   <footer class="actionbar dock" data-bar="1">
     <div class="actionbar-in">
@@ -358,49 +419,6 @@
       </button>
     </div>
   </footer>
-
-  <!-- ================= SETTINGS DRAWER ================= -->
-  <div id="drawerBackdrop" class="backdrop hidden"></div>
-  <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Settings">
-    <div class="drawer-head">
-      <h2>Sending settings</h2>
-      <button id="closeSettings" class="icon-btn" aria-label="Close">✕</button>
-    </div>
-    <div class="drawer-body">
-      <h3>Appearance</h3>
-      <div class="seg" id="themeSeg" role="radiogroup" aria-label="Theme">
-        <label><input type="radio" name="theme" value="light" /><span>Light</span></label>
-        <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
-        <label><input type="radio" name="theme" value="auto" /><span>Auto</span></label>
-      </div>
-
-      <h3>Speed</h3>
-      <p class="help">Slower looks more human and protects your number from being banned.</p>
-      <div class="presets" id="presets">
-        <label class="preset"><input type="radio" name="preset" value="safe" /><div><b>Safe</b><span>12–25 s apart · break every 30</span></div></label>
-        <label class="preset"><input type="radio" name="preset" value="normal" /><div><b>Recommended</b><span>8–15 s apart · break every 50</span></div></label>
-        <label class="preset"><input type="radio" name="preset" value="fast" /><div><b>Fast</b><span>5–10 s apart · higher ban risk</span></div></label>
-        <label class="preset"><input type="radio" name="preset" value="custom" /><div><b>Custom</b><span>Set your own values</span></div></label>
-      </div>
-      <div class="grid2">
-        <label class="field"><span>Min wait (seconds)</span><input class="input" id="minDelay" type="number" min="3" /></label>
-        <label class="field"><span>Max wait (seconds)</span><input class="input" id="maxDelay" type="number" min="3" /></label>
-        <label class="field"><span>Break after every … contacts</span><input class="input" id="batchSize" type="number" min="0" /></label>
-        <span></span>
-        <label class="field"><span>Break min (minutes)</span><input class="input" id="batchRestMin" type="number" min="0" /></label>
-        <label class="field"><span>Break max (minutes)</span><input class="input" id="batchRestMax" type="number" min="0" /></label>
-      </div>
-      <p class="help">Minimum wait is 3 seconds. Set "break after" to 0 to never take breaks (not recommended).</p>
-
-      <h3>Tips to avoid bans</h3>
-      <ul class="tips">
-        <li>Message people who know you or expect your message.</li>
-        <li>New numbers: start with under 50 contacts a day.</li>
-        <li>Avoid sending the exact same link to hundreds of people.</li>
-        <li>If many people block or report you, WhatsApp may ban the number.</li>
-      </ul>
-    </div>
-  </aside>
 
   <!-- ================= DIALOG ================= -->
   <dialog id="dialog" class="dialog">

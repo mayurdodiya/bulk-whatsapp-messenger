@@ -101,15 +101,15 @@
   // ================= two steps =================
   // Step 1: connect WhatsApp + contacts. Step 2: message + send (+ live progress).
   let step = 1;
-  const TITLES = { 1: ['Campaign', 'Connect & contacts'], 2: ['Campaign', 'Message & send'], admin: ['Administration', 'Users'] };
+  const TITLES = { 1: ['Campaign', 'Connect & contacts'], 2: ['Campaign', 'Message & send'], admin: ['Administration', 'Users'], settings: ['Account', 'Settings'] };
   function showStep(n, scroll = true) {
     if (n === 'admin' && state.me?.role !== 'admin') n = 1;
-    if (n !== 'admin') n = Number(n) === 2 ? 2 : 1;
+    if (n !== 'admin' && n !== 'settings') n = Number(n) === 2 ? 2 : 1;
     step = n;
     store.set('step', n);
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('hidden', v.dataset.view !== String(n)));
     document.querySelectorAll('.actionbar').forEach((b) => b.classList.toggle('hidden', b.dataset.bar !== String(n)));
-    document.body.classList.toggle('no-bar', n === 'admin');
+    document.body.classList.toggle('no-bar', n === 'admin' || n === 'settings');
     $('crumb').textContent = TITLES[n][0];
     $('topTitle').textContent = TITLES[n][1];
     openSidebar(false);
@@ -806,16 +806,10 @@
   $('themeSeg').addEventListener('change', (e) => applyTheme(e.target.value));
 
   // ================= settings drawer =================
-  function openDrawer(open) {
-    $('drawer').classList.toggle('open', open);
-    $('drawer').setAttribute('aria-hidden', String(!open));
-    $('drawerBackdrop').classList.toggle('hidden', !open);
-  }
-  $('openSettings').onclick = () => openDrawer(true);
-  $('closeSettings').onclick = () => openDrawer(false);
-  $('drawerBackdrop').onclick = () => openDrawer(false);
-  $('changeSpeed').onclick = () => openDrawer(true);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openDrawer(false); });
+  // Settings is a page now (sidebar → Settings); the speed link in the send panel opens it too.
+  const openSettings = () => showStep('settings');
+  $('openSettings').onclick = openSettings;
+  $('changeSpeed').onclick = openSettings;
 
   function writeSettingInputs() {
     for (const k of SETTING_KEYS) $(k).value = state.settings[k];
