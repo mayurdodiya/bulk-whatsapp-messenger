@@ -137,6 +137,7 @@
   $('signOut').onclick = signOut;
   $('expiredSignOut').onclick = signOut;
   $('toStep2').onclick = () => showStep(2);
+  $('step1Info').addEventListener('click', (e) => { if (e.target.closest('[data-goto1]')) go(1); });
   $('toStep1').onclick = () => showStep(1);
   const isActive = () => ['running', 'paused'].includes(state.campaign?.status);
 
@@ -154,14 +155,13 @@
     $('tab1Sub').textContent = connected || n ? `${connected ? 'Connected' : 'Not connected'} · ${plural(n, 'number')}` : 'Link WhatsApp, add numbers';
     $('tab2Sub').textContent = parts ? `${plural(parts, 'message')} ready` : 'Compose and publish';
 
-    // step 1 bottom bar
-    const chip = (ok, text) => `<span class="check-chip ${ok ? 'ok' : 'no'}"><span class="ic">${ok ? '✓' : '!'}</span>${esc(text)}</span>`;
+    // step 1 dock: two plain lines
     const need = state.contacts.withoutCode;
-    $('step1Info').innerHTML = [
-      chip(connected, connected ? `WhatsApp connected${state.wa.me ? ' (+' + state.wa.me + ')' : ''}` : 'WhatsApp not connected'),
-      chip(n > 0, n > 0 ? `${plural(n, 'number')} ready` : 'No numbers added'),
-      need ? chip(false, `${plural(need, 'number')} without country code — click Apply`) : '',
-    ].join('');
+    const main = n ? `<b>${n}</b> ${n === 1 ? 'number' : 'numbers'} ready` : 'No numbers yet';
+    const sub = !connected ? '<button class="quiet-link" data-goto1="1">Connect WhatsApp →</button>'
+      : need ? `<span class="dock-note">${plural(need, 'number')} need a country code — click Apply</span>`
+      : `<span class="ok-dot"></span>WhatsApp connected`;
+    $('step1Info').innerHTML = `<div class="dock-main">${main}</div><div class="dock-sub">${sub}</div>`;
   }
 
   // ================= step 1: connection =================
@@ -876,7 +876,7 @@
     $('sumRecipients').textContent = n;
     $('sumParts').textContent = parts;
     $('sumPartsWord').textContent = parts === 1 ? 'message' : 'messages';
-    $('sumRecipientsWord').textContent = n === 1 ? 'recipient' : 'recipients';
+    $('sumRecipientsWord').textContent = n === 1 ? 'contact' : 'contacts';
     $('sumSpeed').textContent = PRESET_NAME[state.preset] || 'Custom';
     $('sumSpeed').title = `${s.minDelay}–${s.maxDelay}s apart, break every ${s.batchSize || '∞'}`;
     $('sumTime').textContent = n && parts ? fmtDuration(estimate(n, parts)) : '—';
@@ -893,17 +893,23 @@
     ];
     // bottom bar: only what still needs fixing, each with a link to the right place
     const issues = checks.filter(([ok]) => !ok);
-    $('checklist').innerHTML = issues.length
-      ? issues.map(([, label, target]) => `<span class="issue">⚠ ${esc(label)} <button data-goto="${target}">Fix</button></span>`).join('')
-      : '<span class="ready-line">✓ Ready to send</span>';
+    // dock: when something is missing, one quiet line says what to do next (click = go there)
+    const HINT = { 1: 'Connect WhatsApp to continue', 2: 'Add contacts to continue', 3: 'Write a message to continue' };
+    const first = issues[0];
+    let hint = '';
+    if (first) {
+      const [, label, target] = first;
+      const text = /country code/.test(label) ? 'Apply the country code to continue' : /uploading/.test(label) ? 'Waiting for files to upload…' : HINT[target];
+      hint = `<button class="quiet-link" data-goto="${target}">${esc(text)} →</button>`;
+    }
+    $('checklist').innerHTML = hint;
+    $('dockSub').classList.toggle('hidden', !!first);
 
     const running = state.campaign?.status === 'running';
     const ready = !issues.length && !running;
     const btn = $('sendBtn');
     btn.disabled = !ready;
-    btn.textContent = running ? 'Sending…'
-      : state.campaign?.status === 'paused' ? `Start new (${plural(dn, 'contact')})`
-      : `Send to ${plural(dn, 'contact')}`;
+    $('sendLabel').textContent = running ? 'Sending…' : state.campaign?.status === 'paused' ? 'Start new' : 'Send now';
 
     const warn = $('sendWarn');
     const msgs = [];

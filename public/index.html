@@ -325,27 +325,37 @@
   </main>
 
   <!-- ================= BOTTOM ACTION BARS ================= -->
-  <footer class="actionbar" data-bar="1">
+  <footer class="actionbar dock" data-bar="1">
     <div class="actionbar-in">
-      <div class="bar-info" id="step1Info"></div>
-      <button class="btn btn-primary btn-lg" id="toStep2">Continue to message →</button>
+      <div class="dock-info" id="step1Info"></div>
+      <button class="btn btn-primary dock-cta" id="toStep2">
+        Continue
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M12 4l-1.4 1.4 5.6 5.6H4v2h12.2l-5.6 5.6L12 20l8-8z"/></svg>
+      </button>
     </div>
   </footer>
 
-  <footer class="actionbar hidden" data-bar="2">
+  <footer class="actionbar dock hidden" data-bar="2">
     <div class="actionbar-in">
-      <button class="btn btn-ghost" id="toStep1">← Contacts</button>
-      <div class="bar-info">
-        <div class="facts">
-          <span><b id="sumRecipients">0</b> <span id="sumRecipientsWord">recipients</span></span>
-          <span><b id="sumParts">0</b> <span id="sumPartsWord">messages</span> each</span>
-          <span><b id="sumTime">—</b></span>
-          <span>Speed: <b id="sumSpeed">—</b> <button class="btn-link-inline" id="changeSpeed">change</button></span>
+      <button class="hidden" id="toStep1" tabindex="-1" aria-hidden="true"></button>
+      <div class="dock-info">
+        <div class="dock-main">
+          <b id="sumRecipients">0</b> <span id="sumRecipientsWord">contacts</span>
+          <span class="dot">·</span>
+          <b id="sumParts">0</b> <span id="sumPartsWord">messages</span> each
         </div>
-        <div id="checklist" class="issues"></div>
-        <div id="sendWarn" class="bar-warn hidden"></div>
+        <div class="dock-sub" id="dockSub">
+          <span id="sumTime">—</span>
+          <span class="dot">·</span>
+          <button class="quiet-link" id="changeSpeed" title="Change sending speed"><span id="sumSpeed">Recommended</span> speed</button>
+        </div>
+        <div id="checklist" class="dock-hint"></div>
+        <div id="sendWarn" class="dock-warn hidden"></div>
       </div>
-      <button id="sendBtn" class="btn btn-primary btn-lg" disabled>Send</button>
+      <button id="sendBtn" class="btn btn-primary dock-cta" disabled>
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        <span id="sendLabel">Send</span>
+      </button>
     </div>
   </footer>
 
