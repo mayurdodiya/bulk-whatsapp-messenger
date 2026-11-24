@@ -1,0 +1,10 @@
+node_modules
+data
+auth
+uploads
+.env
+.git
+.superpowers
+docs
+test
+*.log

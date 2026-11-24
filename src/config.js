@@ -21,7 +21,8 @@ export const config = {
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   sessionDays: Number(process.env.SESSION_DAYS) || 7,
   dnsFallback: list(process.env.DNS_FALLBACK || '8.8.8.8,1.1.1.1'),
-  dataDir: path.join(ROOT, 'data'),
+  // where WhatsApp sessions, uploads and draft files live — point this at a persistent volume in production
+  dataDir: process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data'),
 };
 
 export function subscriptionEndedMessage() {

@@ -92,6 +92,9 @@ const requireAdmin = (req, res, next) => (req.user?.role === 'admin' ? next() : 
 
 app.use(express.json({ limit: '5mb' }));
 
+// health check for the hosting platform (no login needed)
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+
 // ---------- pages ----------
 const noStore = (res) => res.setHeader('Cache-Control', 'no-store');
 const PUBLIC = path.join(ROOT, 'public');
@@ -339,6 +342,16 @@ setInterval(async () => {
   }
 }, 5 * 60_000).unref();
 
+// graceful stop (deploys/restarts): campaign progress is already saved after every contact
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    console.log(`\n  ${sig} received, shutting down…`);
+    server.close();
+    mongo.client.close().finally(() => process.exit(0));
+    setTimeout(() => process.exit(0), 5000).unref();
+  });
+}
+
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`\nPort ${config.port} is already in use. The app may already be running — open http://localhost:${config.port}\n`);
@@ -347,7 +360,7 @@ server.on('error', (err) => {
   throw err;
 });
 
-server.listen(config.port, () => {
+server.listen(config.port, '0.0.0.0', () => {
   const url = `http://localhost:${config.port}`;
   console.log(`\n  Bulk WhatsApp Sender running at ${url}\n  Keep this window open while sending. Press Ctrl+C to quit.\n`);
   if (process.platform === 'win32' && !process.env.NO_OPEN) exec(`start "" "${url}"`);
