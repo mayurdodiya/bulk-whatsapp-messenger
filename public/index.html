@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<script>try{document.documentElement.dataset.theme=JSON.parse(localStorage.getItem("bws:theme"))||"light"}catch(e){}</script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bulk WhatsApp Sender</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ================= HEADER ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M2 21l1.6-4.8A9 9 0 1 1 7 20.3L2 21zm6-12.5c0 4 3.5 7.5 7.5 7.5l1.5-1.5-2.2-1.3-1 .8a5 5 0 0 1-2.8-2.8l.8-1L10.5 8 9 6.5A2 2 0 0 0 8 8.5z"/></svg>
+      </span>
+      <div>
+        <div class="brand-name">Bulk Sender</div>
+        <div class="brand-sub">for WhatsApp</div>
+      </div>
+    </div>
+
+    <nav class="steps" aria-label="Steps">
+      <button class="step-tab" data-step="1">
+        <span class="step-dot">1</span>
+        <span class="step-text"><b>Connect & contacts</b><small id="tab1Sub">Link WhatsApp, add numbers</small></span>
+      </button>
+      <span class="step-line"></span>
+      <button class="step-tab" data-step="2">
+        <span class="step-dot">2</span>
+        <span class="step-text"><b>Message & send</b><small id="tab2Sub">Compose and publish</small></span>
+      </button>
+    </nav>
+
+    <div class="top-actions">
+      <div id="headStatus" class="head-status hidden" role="button" tabindex="0">
+        <span class="live-dot"></span><span id="headStatusText">Sending…</span>
+        <div class="mini-bar"><div id="headStatusBar"></div></div>
+      </div>
+      <span id="connPill" class="pill pill-off" role="button" tabindex="0"><span class="pdot"></span><span id="connPillText">Not connected</span></span>
+      <button id="openSettings" class="icon-btn" title="Sending settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="19" height="19"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= STEP 1: CONNECT & CONTACTS ================= -->
+  <main class="page view" data-view="1">
+    <div class="page-head">
+      <h1>Connect & add contacts</h1>
+      <p>Link your WhatsApp, then add the numbers you want to reach.</p>
+    </div>
+
+    <div class="grid-step1">
+      <!-- WhatsApp -->
+      <section class="card" id="secConnect">
+        <div class="card-head">
+          <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17 1H7a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm0 18H7V5h10v14z"/></svg></span>
+          <div><h2>WhatsApp</h2><p>Link your phone like WhatsApp Web</p></div>
+        </div>
+
+        <div id="connQr" class="hidden">
+          <div class="qr-box"><img id="qrImg" alt="QR code to link WhatsApp" /></div>
+          <ol class="steps-list">
+            <li><span>1</span>Open <b>WhatsApp</b> on your phone</li>
+            <li><span>2</span>Tap <b>Settings</b> or <b>⋮</b> → <b>Linked devices</b></li>
+            <li><span>3</span>Tap <b>Link a device</b> and scan this code</li>
+          </ol>
+          <p class="help center">The code refreshes automatically.</p>
+        </div>
+
+        <div id="connWait" class="connect-wait">
+          <div class="spinner" aria-hidden="true"></div>
+          <div id="connWaitText">Connecting to WhatsApp…</div>
+        </div>
+
+        <div id="connOk" class="hidden">
+          <div class="profile">
+            <div class="avatar" id="avatar">?</div>
+            <div class="grow">
+              <div class="ok-badge">● Connected</div>
+              <div class="ok-name" id="meName"></div>
+              <div class="muted" id="meNumber"></div>
+            </div>
+          </div>
+          <div class="profile-foot">
+            <span class="muted small">Your login is saved on this computer.</span>
+            <button id="logoutBtn" class="btn btn-ghost btn-sm">Log out</button>
+          </div>
+        </div>
+
+        <div id="connError" class="alert alert-bad hidden"></div>
+      </section>
+
+      <!-- Contacts -->
+      <section class="card" id="secContacts">
+        <div class="card-head">
+          <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13zm8 0h-1a4.2 4.2 0 0 1 2 3.5V19h6v-2.5c0-2.3-4.7-3.5-7-3.5z"/></svg></span>
+          <div class="grow"><h2>Contacts</h2><p>Paste numbers, then add the country code</p></div>
+          <div class="row gap-sm">
+            <label class="btn btn-ghost btn-sm" title="Import .txt or .csv">
+              Import file
+              <input id="importFile" type="file" accept=".txt,.csv,text/plain,text/csv" hidden />
+            </label>
+            <button id="clearContacts" class="btn btn-text btn-sm">Clear</button>
+          </div>
+        </div>
+
+        <div class="contacts-grid">
+          <div>
+            <div class="cc-row">
+              <div class="cc-input" title="Country code">
+                <span>+</span>
+                <input id="countryCode" type="text" inputmode="numeric" placeholder="91" maxlength="4" autocomplete="off" aria-label="Country code" />
+              </div>
+              <button id="applyCode" class="btn btn-primary grow">Apply country code</button>
+            </div>
+            <div id="needCodeAlert" class="alert alert-warn hidden"></div>
+            <textarea id="contactsRaw" rows="12" spellcheck="false" placeholder="Paste numbers here — one per line or comma separated&#10;&#10;98765 43210&#10;98765 43211, 98765 43212&#10;+44 7911 123456"></textarea>
+          </div>
+
+          <div class="list-side">
+            <div class="tiles tiles-4">
+              <div class="tile ok"><b id="validCount">0</b><span>Ready</span></div>
+              <div class="tile warn"><b id="needCodeCount">0</b><span>No code</span></div>
+              <div class="tile bad"><b id="invalidCount">0</b><span>Invalid</span></div>
+              <div class="tile"><b id="dupCount">0</b><span>Duplicates</span></div>
+            </div>
+            <div id="invalidBlock" class="hidden">
+              <div class="row between tight-row">
+                <span class="label">Invalid entries</span>
+                <button id="removeInvalid" class="btn btn-text btn-sm">Remove all</button>
+              </div>
+              <div id="invalidList" class="chips"></div>
+            </div>
+            <input id="searchNumbers" type="search" class="input input-sm" placeholder="Search numbers…" />
+            <ul id="numberList" class="number-list"></ul>
+            <div id="numbersEmpty" class="empty">No numbers yet.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= STEP 2: MESSAGE & SEND ================= -->
+  <main class="page view hidden" data-view="2">
+    <div class="page-head">
+      <h1>Create your message</h1>
+      <p>Add text and media, check the preview, then send.</p>
+    </div>
+
+    <div class="grid-step2">
+      <div class="stack">
+        <!-- Composer (drafts live in its header strip) -->
+        <section class="card" id="secMessage">
+          <div class="card-head">
+            <span class="card-ic"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z"/></svg></span>
+            <div class="grow"><h2>Message</h2><p class="edit-only">Sent to every contact in this order · drag to reorder</p></div>
+            <div class="row gap-sm edit-only">
+              <button id="addText" class="btn btn-ghost btn-sm">＋ Text</button>
+              <button id="addFiles" class="btn btn-ghost btn-sm">＋ Photos & files</button>
+              <input id="fileInput" type="file" multiple hidden />
+            </div>
+          </div>
+
+          <div class="drafts-strip">
+            <div class="drafts-label">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 3-3 3 3 0 0 1-3 3zm3-10H5V5h10v4z"/></svg>
+              Saved drafts
+            </div>
+            <div id="drafts" class="drafts"></div>
+          </div>
+
+          <div id="lockNote" class="alert alert-info hidden">
+            🔒 This message is being sent right now, so editing is locked. Stop the campaign to change it.
+          </div>
+
+          <ol id="itemList" class="items"></ol>
+
+          <div id="dropZone" class="dropzone edit-only" tabindex="0" role="button" aria-label="Add files">
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M19 15v4H5v-4H3v6h18v-6h-2zM11 4.8V16h2V4.8l3.6 3.6L18 7l-6-6-6 6 1.4 1.4L11 4.8z"/></svg>
+            <div><b>Drop photos, videos or files here</b></div>
+            <div class="muted small">or click to browse · up to <span id="maxMb">64</span> MB each</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack side">
+        <!-- Preview -->
+        <section class="card card-tight" id="secPreview">
+          <div class="row between">
+            <h2 class="mini-title"><span id="previewBadge" class="live hidden">● Now sending</span>Preview</h2>
+            <button id="testSend" class="btn btn-ghost btn-sm" title="Sends this message to your own WhatsApp">Send test to me</button>
+          </div>
+          <div class="phone">
+            <div class="phone-head">
+              <div class="avatar sm"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></div>
+              <div class="grow"><div class="ph-name" id="phName">Contact</div><div class="ph-sub" id="phSub">online</div></div>
+            </div>
+            <div id="chat" class="chat"></div>
+          </div>
+        </section>
+
+        <!-- Progress -->
+        <section class="card card-tight" id="progressCard">
+          <div class="row between">
+            <h2 class="mini-title">Progress</h2>
+            <span id="campStatus" class="badge">—</span>
+          </div>
+          <div id="campIdle" class="empty">Nothing sent yet. Press <b>Send</b> below when you're ready.</div>
+          <div id="campBody" class="hidden">
+            <div id="nowSending" class="now hidden"></div>
+            <div id="campNote" class="alert alert-warn hidden"></div>
+            <div class="progress-top">
+              <div class="big-pct" id="pct">0%</div>
+              <div class="grow">
+                <div class="bar"><div id="bar" class="bar-fill"></div></div>
+                <div class="row between small muted tight">
+                  <span id="doneOf">0 of 0</span>
+                  <span id="campCountdown"></span>
+                </div>
+              </div>
+            </div>
+            <div class="tiles tiles-4">
+              <div class="tile ok"><b id="cSent">0</b><span>Sent</span></div>
+              <div class="tile bad"><b id="cFailed">0</b><span>Failed</span></div>
+              <div class="tile warn"><b id="cSkipped">0</b><span>No WhatsApp</span></div>
+              <div class="tile"><b id="cPending">0</b><span>Left</span></div>
+            </div>
+            <div class="row controls">
+              <button id="pauseBtn" class="btn btn-ghost btn-sm">❚❚ Pause</button>
+              <button id="resumeBtn" class="btn btn-primary btn-sm">▶ Resume</button>
+              <button id="stopBtn" class="btn btn-danger btn-sm">■ Stop</button>
+              <span class="grow"></span>
+              <a id="csvBtn" class="btn btn-ghost btn-sm" href="/api/campaign/results.csv">⭳ Report</a>
+            </div>
+            <div class="filters">
+              <button data-f="all" class="chip-btn active">All</button>
+              <button data-f="sent" class="chip-btn">Sent</button>
+              <button data-f="failed" class="chip-btn">Failed</button>
+              <button data-f="skipped" class="chip-btn">No WhatsApp</button>
+              <button data-f="pending" class="chip-btn">Pending</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Number</th><th>Status</th><th>Detail</th></tr></thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= BOTTOM ACTION BARS ================= -->
+  <footer class="actionbar" data-bar="1">
+    <div class="actionbar-in">
+      <div class="bar-info" id="step1Info"></div>
+      <button class="btn btn-primary btn-lg" id="toStep2">Continue to message →</button>
+    </div>
+  </footer>
+
+  <footer class="actionbar hidden" data-bar="2">
+    <div class="actionbar-in">
+      <button class="btn btn-ghost" id="toStep1">← Contacts</button>
+      <div class="bar-info">
+        <div class="facts">
+          <span><b id="sumRecipients">0</b> <span id="sumRecipientsWord">recipients</span></span>
+          <span><b id="sumParts">0</b> <span id="sumPartsWord">messages</span> each</span>
+          <span><b id="sumTime">—</b></span>
+          <span>Speed: <b id="sumSpeed">—</b> <button class="btn-link-inline" id="changeSpeed">change</button></span>
+        </div>
+        <div id="checklist" class="issues"></div>
+        <div id="sendWarn" class="bar-warn hidden"></div>
+      </div>
+      <button id="sendBtn" class="btn btn-primary btn-lg" disabled>Send</button>
+    </div>
+  </footer>
+
+  <!-- ================= SETTINGS DRAWER ================= -->
+  <div id="drawerBackdrop" class="backdrop hidden"></div>
+  <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Settings">
+    <div class="drawer-head">
+      <h2>Sending settings</h2>
+      <button id="closeSettings" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <h3>Appearance</h3>
+      <div class="seg" id="themeSeg" role="radiogroup" aria-label="Theme">
+        <label><input type="radio" name="theme" value="light" /><span>Light</span></label>
+        <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+        <label><input type="radio" name="theme" value="auto" /><span>Auto</span></label>
+      </div>
+
+      <h3>Speed</h3>
+      <p class="help">Slower looks more human and protects your number from being banned.</p>
+      <div class="presets" id="presets">
+        <label class="preset"><input type="radio" name="preset" value="safe" /><div><b>Safe</b><span>12–25 s apart · break every 30</span></div></label>
+        <label class="preset"><input type="radio" name="preset" value="normal" /><div><b>Recommended</b><span>8–15 s apart · break every 50</span></div></label>
+        <label class="preset"><input type="radio" name="preset" value="fast" /><div><b>Fast</b><span>5–10 s apart · higher ban risk</span></div></label>
+        <label class="preset"><input type="radio" name="preset" value="custom" /><div><b>Custom</b><span>Set your own values</span></div></label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Min wait (seconds)</span><input class="input" id="minDelay" type="number" min="3" /></label>
+        <label class="field"><span>Max wait (seconds)</span><input class="input" id="maxDelay" type="number" min="3" /></label>
+        <label class="field"><span>Break after every … contacts</span><input class="input" id="batchSize" type="number" min="0" /></label>
+        <span></span>
+        <label class="field"><span>Break min (minutes)</span><input class="input" id="batchRestMin" type="number" min="0" /></label>
+        <label class="field"><span>Break max (minutes)</span><input class="input" id="batchRestMax" type="number" min="0" /></label>
+      </div>
+      <p class="help">Minimum wait is 3 seconds. Set "break after" to 0 to never take breaks (not recommended).</p>
+
+      <h3>Tips to avoid bans</h3>
+      <ul class="tips">
+        <li>Message people who know you or expect your message.</li>
+        <li>New numbers: start with under 50 contacts a day.</li>
+        <li>Avoid sending the exact same link to hundreds of people.</li>
+        <li>If many people block or report you, WhatsApp may ban the number.</li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- ================= DIALOG ================= -->
+  <dialog id="dialog" class="dialog">
+    <form method="dialog">
+      <h3 id="dlgTitle"></h3>
+      <p id="dlgBody"></p>
+      <input id="dlgInput" class="input hidden" maxlength="60" autocomplete="off" />
+      <div class="row end">
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button value="ok" id="dlgOk" class="btn btn-primary">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
